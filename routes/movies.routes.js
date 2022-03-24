@@ -21,4 +21,4 @@ router.delete('/:id', deleteMovie );
 
 router.patch('/:id', updateMovie);
 
-module.exports = { userRouter: router };
+module.exports = { movieRouter: router };

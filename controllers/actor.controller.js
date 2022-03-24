@@ -1,98 +1,96 @@
+const dotenv=require('dotenv');
+
 const { Actors } = require('../models/actors.model');
-const { Movies} = require('../models/movies.model')
-const { Reviews} = require('../models/reviews.model')
+const { Movies} = require('../models/movies.model');
+
+const {catchAsync} = require('../util/catchAsync');
+const { AppError } = require('../../multer-example/util/appError');
+
+dotenv.config({path: './config.env'});
 
 
-require('../controllers/')
+exports.getAllActors = catchAsync (async(req, res, next) => {
+	const actors = await Actors.findAll({
+		where: { status: 'active' },
+		attributes: { exclude: ['password'] },
+		include: [
+		  {
+				model: Movies,
+				include: [
+				  {
+					model: Actors,
+					attributes: { exclude: ['password'] }
+				  }
+				]
+		  }
+		]
+	  });
+	
+	  res.status(200).json({
+		status: 'success',
+		data: { actors}
+	  });
+	});
 
-exports.getAllActors = catchAsync (async(req, res) => {
-    try {
-		// SELECT * FROM users
-		// JOIN address ON users.id = addresses.userId
-		// JOIN posts ON posts.userId = users.id
-
-		// Step 2: Use the attribute include
-		const actors = await Actors.findAll({
-			include: [{ model: Movies }, { model: Reviews }],
-		});
-
-		res.status(200).json({
-			status: 'success',
-			data: { Actors },
-		});
-	} catch (error) {
-		console.log(error);
-	}
-    });
-
-exports.getActorById = catchAsync (async(req, res) => {
-    try {
+exports.getActorById = catchAsync (async(req, res, next) => {
 		const { id } = req.params;
 
-		const Actor = await Actors.findOne({ where: { id } });
+		const actors = await Actors.findOne({ where: { id } });
+
+		if(!actors){
+			return next(new AppError(404, 'User not found'));
+		  }
 
 		res.status(200).json({
 			status: 'success',
-			data: { user },
+			data: { actors },
 		});
-	} catch (error) {
-		console.log(error);
-	}
+	
 });
 
-exports.createNewActor = catchAsync (async(req, res) => {
-    try {
-		const { name } = req.body;
+exports.createNewActor = catchAsync (async(req, res, next) => {
+		const { name, country, age, profilePic, rating=0 } = req.body;
 
-		const newActor = await Actors.create({ name });
+		if(!name || !country || !age || !profilePic || !rating){
+			return next(new AppError(400, 'Must provide a invalid name, country, age, profilePic and rating'))
+		};
+
+		const newActor = await Actors.create({ name, country, age, profilePic, rating  });
 
 		res.status(201).json({
 			status: 'success',
-			data: { newUser },
+			data: { newActor },
 		});
-	} catch (error) {
-		console.log(error);
-	}
 });
 
-exports.deleteActor = catchAsync (async(req, res) => {
+exports.deleteActor = catchAsync (async(req, res, next) => {
     const {id}=req.params;
 
-    const ActorId= Actors.findIndex(actor=>actor.id===+id);
+    const actors = await Actors.findOne({where: {id: id, status: 'active'}});
+
+    if (!actors) {
+		return next(new AppError(404, 'Actor not found'));
+	  }
 
 
-    if(ActorId===-1){
-        res.status(404).json({
-            status: 'error',
-            message: 'Cant delete actor, invalid ID',
-        });
-        return;
-    }
+	  await actors.update({ status: 'deleted' });
 
-    Actors.splice(ActorId, 1);
-
-    res.status(204).json({status: 'success'});
+	  res.status(204).json({ status: 'success' });
 });
 
-exports.updateActor = catchAsync (async(req, res) => {
+exports.updateActor = catchAsync (async(req, res, next) => {
     const { id } = req.params;
-	const data = filterObj(req.body, 'name', 'age');
+    const data = filterObj(req.body, 'name');
 
-	const ActorId = Actors.findIndex(actor => actor.id === +id);
+    const actors = await Actors.findOne({
+      where: { id: id, status: 'active' }
+    });
 
-	if (ActorId === -1) {
-		res.status(404).json({
-			status: 'error',
-			message: 'Cant update user, not a valid ID',
-		});
-		return;
-	}
+    if (!actors) {
+      return next(new AppError(404, 'Actor not found'));
+    }
 
-	let updatedActor = Actors[ActorId];
+    await actors.update({ ...data }); 
 
-	updatedActor = { ...updatedActor, ...data };
-
-	Actors[ActorId] = updatedActor;
-
-	res.status(204).json({ status: 'success' });
+    res.status(204).json({ status: 'success' });
 });

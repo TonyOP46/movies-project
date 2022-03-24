@@ -21,4 +21,4 @@ router.delete('/:id', deleteActor );
 
 router.patch('/:id', updateActor);
 
-module.exports = { userRouter: router };
+module.exports = { actorRouter: router };
