@@ -21,7 +21,7 @@ const Actors = sequelize.define('actor', {
     allowNull: false
   },
   age: {
-    type: DataTypes.STRING(100),
+    type: DataTypes.INTEGER,
     allowNull: false
   },
   profilePic: {

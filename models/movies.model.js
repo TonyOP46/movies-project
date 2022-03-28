@@ -13,12 +13,13 @@ const Movies = sequelize.define('movie', {
     allowNull: false
   },
   description: {
-    type: DataTypes.STRING(100),
+    type: DataTypes.STRING(255),
     allowNull: false
   },
   duration: {
-    type: DataTypes.TIME,
-    allowNull: false
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    defaultValue: 0
   },
   rating: {
     type: DataTypes.INTEGER,
@@ -36,7 +37,7 @@ const Movies = sequelize.define('movie', {
     type: DataTypes.STRING(10),
     defaultValue: 'active',
     allowNull: false
-  },
+  }
 });
 
 module.exports = { Movies };
