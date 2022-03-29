@@ -11,7 +11,8 @@ const {
 } = require('../controllers/users.controller');
 
 const {
-  validateSession
+  validateSession,
+  validateSessionAdmin
 } = require('../middlewares/auth.middleware');
 
 const router = express.Router();
@@ -20,6 +21,7 @@ router.post('/', createNewUser);
 router.post('/login', loginUser);
 
 router.use(validateSession);
+router.use(validateSessionAdmin);
 
 router.get('/', getAllUsers);
 router.get('/:id', getUsersById);

@@ -1,8 +1,15 @@
-const { ref, uploadBytes} = require('firebase/storage');
+const {
+  ref,
+  uploadBytes,
+  getDownloadURL
+} = require('firebase/storage');
 
 // Models
 const { Actors } = require('../models/actors.model');
 const { Movies } = require('../models/movies.model');
+const {
+  ActorsinMovie
+} = require('../models/actorsinMovie.model');
 
 // Utils
 const { catchAsync } = require('../util/catchAsync');
@@ -50,13 +57,48 @@ exports.createNewActor = catchAsync(
 exports.getAllActors = catchAsync(
   async (req, res, next) => {
     const actors = await Actors.findAll({
-      where: { status: 'active' }
-      /*include: [{ model: Movies }]*/
+      where: { status: 'active' },
+      include: [{ model: Movies, through: ActorsinMovie }]
     });
+
+    // console.log(actors);
+
+    // Promise[]
+    const actorsPromises = actors.map(
+      async ({
+        name,
+        country,
+        rating,
+        age,
+        profilePic,
+        createdAt,
+        updatedAt,
+        movies
+      }) => {
+        const imgRef = ref(storage, profilePic);
+
+        const imgDownloadUrl = await getDownloadURL(imgRef);
+
+        return {
+          name,
+          country,
+          rating,
+          age,
+          profilePic: imgDownloadUrl,
+          createdAt,
+          updatedAt,
+          movies
+        };
+      }
+    );
+
+    const resolvedActors = await Promise.all(
+      actorsPromises
+    );
 
     res.status(200).json({
       status: 'sucess',
-      data: { actors }
+      data: resolvedActors
     });
   }
 );
@@ -64,15 +106,44 @@ exports.getActorById = catchAsync(
   async (req, res, next) => {
     const { id } = req.params;
 
-    const actors = await Actors.findOne({ where: { id } });
+    const actors = await Actors.findOne({
+      where: { id },
+      include: [{ model: Movies, through: ActorsinMovie }]
+    });
 
     if (!actors) {
       return next(new AppError(404, 'Actor not found'));
     }
 
+    const {
+      name,
+      country,
+      rating,
+      age,
+      profilePic,
+      createdAt,
+      updatedAt,
+      movies
+    } = actors;
+
+    const imgRef = ref(storage, profilePic);
+
+    const imgDownloadUrl = await getDownloadURL(imgRef);
+
+    const resolvedActors = {
+      name,
+      country,
+      rating,
+      age,
+      profilePic: imgDownloadUrl,
+      createdAt,
+      updatedAt,
+      movies
+    };
+
     res.status(200).json({
       status: 'success',
-      data: { actors }
+      data: resolvedActors
     });
   }
 );

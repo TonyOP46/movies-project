@@ -30,7 +30,7 @@ const Users = sequelize.define('user', {
     type: DataTypes.STRING(10),
     unique: true,
     allowNull: 'guest'
-  },
+  }
 });
 
 module.exports = { Users };

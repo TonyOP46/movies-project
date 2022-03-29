@@ -1,7 +1,14 @@
-const { ref, uploadBytes} = require('firebase/storage');
+const {
+  ref,
+  uploadBytes,
+  getDownloadURL
+} = require('firebase/storage');
 
 // Models
 const { Movies } = require('../models/movies.model');
+const {
+  ActorsinMovie
+} = require('../models/actorsinMovie.model');
 const { Actors } = require('../models/actors.model');
 const { Reviews } = require('../models/reviews.model');
 
@@ -30,11 +37,15 @@ exports.createNewMovie = catchAsync(
       );
     }
 
+    const fileExtension =
+      req.file.originalname.split('.')[1];
+
     const imgRef = ref(
       storage,
-      `imgs/${Date.now()}-${req.file.originalname}`
+      `imgs/movies/${title}-${Date.now()}.${fileExtension}`
     );
-    const result = await uploadBytes(
+
+    const imgUploaded = await uploadBytes(
       imgRef,
       req.file.buffer
     );
@@ -44,8 +55,8 @@ exports.createNewMovie = catchAsync(
       description,
       duration,
       rating,
-      img: result.metadata.fullPath,//userId: req.currentUser.id,
-      genre
+      genre,
+      img: imgUploaded.metadata.fullPath
     });
 
     res.status(201).json({
@@ -58,30 +69,105 @@ exports.getAllMovies = catchAsync(
   async (req, res, next) => {
     const movies = await Movies.findAll({
       where: { status: 'active' },
-     /* inclide: [{ model: Reviews }, { model: Actors }]*/
+      include: [
+        { model: Actors, through: ActorsinMovie },
+        { model: Reviews }
+      ]
     });
+
+    // Promise[]
+    const moviesPromises = movies.map(
+      async ({
+        title,
+        description,
+        duration,
+        rating,
+        img,
+        createdAt,
+        updatedAt,
+        actors,
+        reviews
+      }) => {
+        const imgRef = ref(storage, img);
+
+        const imgDownloadUrl = await getDownloadURL(imgRef);
+
+        return {
+          title,
+          description,
+          duration,
+          rating,
+          img: imgDownloadUrl,
+          createdAt,
+          updatedAt,
+          actors,
+          reviews
+        };
+      }
+    );
+
+    const resolvedMovies = await Promise.all(
+      moviesPromises
+    );
+
     res.status(200).json({
       status: 'sucess',
-      data: { movies }
+      data: resolvedMovies
     });
   }
 );
 exports.getMoviesById = catchAsync(
   async (req, res, next) => {
     const { id } = req.params;
+    const movies = await Movies.findOne({
+      where: { id },
+      include: [
+        { model: Actors, through: ActorsinMovie },
+        { model: Reviews }
+      ]
+    });
 
-    const movies = await Movies.findOne({ where: { id } });
+    //console.log(movies);
 
     if (!movies) {
       return next(new AppError(404, 'Movie not found'));
     }
 
+    const {
+      title,
+      description,
+      duration,
+      rating,
+      img,
+      createdAt,
+      updatedAt,
+      actors,
+      reviews
+    } = movies;
+
+    const imgRef = ref(storage, img);
+
+    const imgDownloadUrl = await getDownloadURL(imgRef);
+
+    const resolvedMovies = {
+      title,
+      description,
+      duration,
+      rating,
+      img: imgDownloadUrl,
+      createdAt,
+      updatedAt,
+      actors,
+      reviews
+    };
+
     res.status(200).json({
       status: 'success',
-      data: { movies }
+      data: resolvedMovies
     });
   }
 );
+
 exports.updateMovie = catchAsync(async (req, res, next) => {
   const { id } = req.params;
 

@@ -32,7 +32,7 @@ const Actors = sequelize.define('actor', {
     type: DataTypes.STRING(10),
     defaultValue: 'active',
     allowNull: false
-  },
+  }
 });
 
 module.exports = { Actors };

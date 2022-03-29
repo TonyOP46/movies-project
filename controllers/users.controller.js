@@ -2,10 +2,11 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const dotenv = require('dotenv');
 
-dotenv.config({path:'./config.env'});
+dotenv.config({ path: './config.env' });
 
 // Models
 const { Users } = require('../models/users.model');
+const { Reviews } = require('../models/reviews.model');
 
 // Utils
 const { catchAsync } = require('../util/catchAsync');
@@ -26,12 +27,15 @@ exports.createNewUser = catchAsync(
 
     const salt = await bcrypt.genSalt(12);
 
-    const hashedPassword = await bcrypt.hash(password, salt);
+    const hashedPassword = await bcrypt.hash(
+      password,
+      salt
+    );
 
     const newUsers = await Users.create({
       username,
       email,
-      password : hashedPassword,
+      password: hashedPassword,
       role
     });
 
@@ -46,7 +50,8 @@ exports.createNewUser = catchAsync(
 exports.getAllUsers = catchAsync(async (req, res, next) => {
   const users = await Users.findAll({
     where: { status: 'active' },
-    attributes: {exclude:['password']}
+    attributes: { exclude: ['password'] },
+    include: [{ model: Reviews }]
   });
   res.status(200).json({
     status: 'sucess',
@@ -107,32 +112,35 @@ exports.deleteUser = catchAsync(async (req, res, next) => {
   res.status(204).json({ status: 'success' });
 });
 
-exports.loginUser = catchAsync(async(req,res,next)=>{
-  const { email, password }=req.body;
+exports.loginUser = catchAsync(async (req, res, next) => {
+  const { email, password } = req.body;
 
   //Find user given an email and has status active
   const user = await Users.findOne({
-    where: { email, status: 'active'}
+    where: { email, status: 'active' }
   });
-  
+
   //Compare entered password vs hashed password
-  if(!user || !(await bcrypt.compare(password, user.password))){
-    return next(new AppError(400, 'Credentials arer invalid'));
+  if (
+    !user ||
+    !(await bcrypt.compare(password, user.password))
+  ) {
+    return next(
+      new AppError(400, 'Credentials arer invalid')
+    );
   }
 
   //Create JWT
   const token = await jwt.sign(
-    { id: user.id}, //Token payload
+    { id: user.id }, //Token payload
     process.env.JWT_SECRET, //Secret key
     {
       expiresIn: process.env.JWT_EXPIRES_IN
     }
   );
 
-    res.status(200).json({
-      status: 'success',
-      data: {token}
-    });
-
-
+  res.status(200).json({
+    status: 'success',
+    data: { token }
+  });
 });
